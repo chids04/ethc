@@ -1,0 +1,46 @@
+## Simple Blockchain Project Outline (Learning Implementation)
+
+### I. Core Data Structures
+
+Define the fundamental components of the chain as classes/structs:
+
+* Account: Needs privateKey, publicKey, address, balance, and nonce.
+* Transaction: Needs sender, recipient, amount, nonce, and signature.
+* Block Header: Needs index, timestamp, transactionsRoot (Merkle), prevBlockHash, and a nonce (for PoW).
+* Block: Contains the header and a list of transactions[].
+
+---
+
+### II. Cryptography & Utilities
+
+Use simplified primitives: SHA-256 for hashing and ECDSA (P-256) for signatures.
+
+* Key Management: Implement functions to generate ECDSA key pairs and derive the 20-byte public address (first 20 bytes of SHA-256 hash of the public key).
+* Signing/Verification: Functions to sign a transaction and verify the signature using the corresponding public key.
+* Hashing: A utility function for general SHA-256 hashing.
+
+---
+
+### III. State & Transaction Management
+
+Manage the current network status and process transactions.
+
+* World State: Use a simple map/dictionary (address -> Account Object) to hold all current account data.
+* Mempool: A list for storing valid, pending transactions.
+* Transaction Validation: Check incoming transactions for:
+    1.  Valid signature.
+    2.  Sufficient sender balance.
+    3.  Correct sequential nonce.
+* State Transition Function (STF): The core logic. Takes a transaction, updates the sender's balance (subtracts), updates the recipient's balance (adds), and increments the sender's nonce.
+
+---
+
+### IV. Block Construction & Consensus
+
+How new blocks are created and secured.
+
+* Merkle Tree: Implement a basic binary Merkle tree to calculate the transactionsRoot from all transactions included in a block.
+* Proof-of-Work (PoW):
+    * Set a static DIFFICULTY (e.g., hash must start with '000').
+    * Mining: Repeatedly hash the Block Header (changing the nonce) until the hash meets the difficulty target.
+* Chain Validation: Check that a new block is

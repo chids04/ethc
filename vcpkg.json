@@ -1,0 +1,6 @@
+{
+  "name": "ethc",
+  "dependencies": [
+    "openssl"
+  ]
+}
