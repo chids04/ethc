@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.21)
+
+project(ethc LANGUAGES C)
+
+set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+add_executable(ethc main.c)
+
+target_compile_options(ethc PRIVATE
+    $<$<C_COMPILER_ID:GNU>:-Wall -Wextra>
+    $<$<C_COMPILER_ID:Clang>:-Wall -Wextra>
+    $<$<C_COMPILER_ID:MSVC>:/W4>
+)
