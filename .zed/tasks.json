@@ -1,0 +1,9 @@
+// Project tasks configuration. See https://zed.dev/docs/tasks for documentation.
+//
+// Example:
+[
+    {
+        "label": "run prgm",
+        "command": "cmake --build --preset default && ./build/ethc"
+    }
+]
