@@ -10,7 +10,6 @@
 #include "signer.h"
 
 int main() {
-
     OSSL_LIB_CTX *ctx = OSSL_LIB_CTX_new();
     if (ctx == NULL) {
         fprintf(stderr, "failed to init openssl context");
@@ -37,17 +36,18 @@ int main() {
     }
     printf("\n");
 
-
     printf("verifying signature \n");
 
     const char *new = "sig will now fail";
 
-    if (verify_sig(s->ctx, s->keys, sig, (const unsigned char*)new, strlen(new)) == 1) {
+    if (verify_sig(s->ctx, s->pkey, sig, (const unsigned char*)new, strlen(new)) == 1) {
         printf("signature verfied\n");
     }
     else {
         fprintf(stderr, "signature invalid\n");
     }
+
+    get_pub_key(s);
 
     return 0;
 }

@@ -1,3 +1,5 @@
+#include <openssl/bn.h>
+#include <openssl/crypto.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -6,11 +8,12 @@
 #include <openssl/ec.h>
 #include <openssl/core_names.h>
 
-const char* SIG_NAME = "SHA256";
+const char* HASH_NAME = "SHA3-512";
 
 typedef struct {
-    EVP_PKEY *keys;
+    EVP_PKEY *pkey;
     OSSL_LIB_CTX *ctx;
+
 } Signer;
 
 typedef struct {
@@ -23,10 +26,95 @@ Signer* new_signer(OSSL_LIB_CTX *ctx) {
     EVP_PKEY *pkey = EVP_EC_gen("P-256");
 
     Signer *signer = malloc(sizeof(Signer));
-    signer->keys = pkey;
+    signer->pkey = pkey;
     signer->ctx = ctx;
 
     return signer;
+}
+
+// EVP_PKEY *to_pkey(const unsigned char *public_key) {
+//     OSSL_DECODER_CTX *dctx = NULL;
+//     EVP_PKEY *pkey = NULL;
+//     int selection;
+//     const unsigned char *data;
+//     size_t data;
+
+//     if(public) {
+//         selection =EVP_PKEY_PUBLIC_KEY;
+//         data = public_key;
+//         data_len
+//     }
+
+// }
+
+ int gen_pub_key(Signer *signer) {
+
+    BIGNUM *x = NULL;
+    BIGNUM *y = NULL;
+
+    if(EVP_PKEY_get_bn_param(signer->pkey, OSSL_PKEY_PARAM_EC_PUB_X, &x)) {
+        fprintf(stderr, "error generating public key: invalid ec x param");
+        return 1;
+    }
+    if(EVP_PKEY_get_bn_param(signer->pkey, OSSL_PKEY_PARAM_EC_PUB_Y, &y)) {
+        fprintf(stderr, "error generating public key: invalid ec y param");
+        return 1;
+    }
+
+    unsigned char xy[64];
+    int x_len = BN_bn2binpad(x, xy, 32);
+    int y_len = BN_bn2binpad(x, &xy[32], 32);
+
+    if(x_len < 0 || y_len < 0) {
+        fprintf(stderr, "invalid x and y values from ECDSA point curve");
+        return 1;
+    }
+
+    // now we can hash this
+    // and take last 20 bytes
+
+    EVP_MD* pub_digest = EVP_MD_fetch(signer->ctx, HASH_NAME, NULL);
+
+
+    int digest_len = EVP_MD_get_size(pub_digest);
+    if(digest_len <= 0) {
+        fprintf(stderr, "failed to create digest len for pub key");
+        goto cleanup;
+    }
+
+    unsigned char* digest_val = OPENSSL_malloc(digest_len);
+    if(digest_val == NULL) {
+        fprintf(stderr, "failed to create digest value for pub key");
+        goto cleanup;
+    }
+
+    EVP_MD_CTX *digest_ctx = EVP_MD_CTX_new();
+    if(digest_ctx == NULL) {
+        fprintf(stderr, "failed to create digest context for pub key");
+        goto cleanup;
+    }
+
+    if(EVP_DigestInit(digest_ctx, pub_digest) != 1) {
+        fprintf(stderr, "failed to init digest for pub key");
+        goto cleanup;
+    }
+
+    if(EVP_DigestUpdate(digest_ctx, xy, sizeof(xy)) != 1) {
+        fprintf(stderr, "failed to update digest for pub key");
+        goto cleanup;
+    }
+
+    return 0;
+
+    cleanup:
+        EVP_MD_CTX_free(digest_ctx);
+        EVP_MD_free(pub_digest);
+        return 1;
+
+
+    printf("len of x binary %d", x_len);
+    printf("len of y binary %d", y_len);
+
 }
 
 
@@ -34,12 +122,13 @@ EthSig *sign_data(Signer *signer, const char* data, size_t data_len) {
     EthSig *sig = malloc(sizeof(EthSig));
 
     EVP_MD_CTX *sign_context = EVP_MD_CTX_new();
+
     if(sign_context == NULL) {
         fprintf(stderr, "EVP_MD_CTX_NEW failed \n");
         goto cleanup;
     }
 
-    if (!EVP_DigestSignInit_ex(sign_context, NULL, SIG_NAME, signer->ctx, NULL, signer->keys, NULL)) {
+    if (!EVP_DigestSignInit_ex(sign_context, NULL, HASH_NAME, signer->ctx, NULL, signer->pkey, NULL)) {
         fprintf(stderr, "EVP_DigestSignInit_ex failed.\n");
         goto cleanup;
     }
@@ -94,7 +183,7 @@ int verify_sig(OSSL_LIB_CTX *libctx, EVP_PKEY* pub_key, EthSig *sig,
     }
 
     // verify
-    if (!EVP_DigestVerifyInit_ex(verify_context, NULL, SIG_NAME, libctx, NULL, pub_key, NULL)) {
+    if (!EVP_DigestVerifyInit_ex(verify_context, NULL, HASH_NAME, libctx, NULL, pub_key, NULL)) {
         fprintf(stderr, "EVP_DigestVerifyInit failed.\n");
         goto cleanup;
     }

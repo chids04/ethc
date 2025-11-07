@@ -4,6 +4,16 @@
 
 Define the fundamental components of the chain as classes/structs:
 
+wallets have signers attached to them
+these do the signatures and generate the public key to be stored in the wallet
+wallets initiate transfers to other wallets
+a user will want to enter the wallets public Key
+and use that to author a transaction
+we should be interfacing with signers, thats low level
+
+so the function takes a public key, i need to figure out how to be able to encode
+and decode the pubkey or verify it
+
 * Account: Needs privateKey, publicKey, address, balance, and nonce.
 * Transaction: Needs sender, recipient, amount, nonce, and signature.
 * Block Header: Needs index, timestamp, transactionsRoot (Merkle), prevBlockHash, and a nonce (for PoW).
