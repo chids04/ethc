@@ -8,7 +8,7 @@
 #include <openssl/ec.h>
 #include <openssl/core_names.h>
 
-const char* HASH_NAME = "SHA3-512";
+const char* HASH_NAME = "SHA3-256";
 
 typedef struct {
     EVP_PKEY *pkey;
@@ -52,11 +52,11 @@ Signer* new_signer(OSSL_LIB_CTX *ctx) {
     BIGNUM *x = NULL;
     BIGNUM *y = NULL;
 
-    if(EVP_PKEY_get_bn_param(signer->pkey, OSSL_PKEY_PARAM_EC_PUB_X, &x)) {
+    if(EVP_PKEY_get_bn_param(signer->pkey, OSSL_PKEY_PARAM_EC_PUB_X, &x) != 1) {
         fprintf(stderr, "error generating public key: invalid ec x param");
         return 1;
     }
-    if(EVP_PKEY_get_bn_param(signer->pkey, OSSL_PKEY_PARAM_EC_PUB_Y, &y)) {
+    if(EVP_PKEY_get_bn_param(signer->pkey, OSSL_PKEY_PARAM_EC_PUB_Y, &y) != 1) {
         fprintf(stderr, "error generating public key: invalid ec y param");
         return 1;
     }
@@ -66,17 +66,19 @@ Signer* new_signer(OSSL_LIB_CTX *ctx) {
     int y_len = BN_bn2binpad(x, &xy[32], 32);
 
     if(x_len < 0 || y_len < 0) {
-        fprintf(stderr, "invalid x and y values from ECDSA point curve");
+        fprintf(stderr, "invalid x and/or y values from ECDSA point curve");
         return 1;
     }
+
+    BN_free(x);
+    BN_free(y);
 
     // now we can hash this
     // and take last 20 bytes
 
     EVP_MD* pub_digest = EVP_MD_fetch(signer->ctx, HASH_NAME, NULL);
 
-
-    int digest_len = EVP_MD_get_size(pub_digest);
+    unsigned int digest_len = EVP_MD_get_size(pub_digest);
     if(digest_len <= 0) {
         fprintf(stderr, "failed to create digest len for pub key");
         goto cleanup;
@@ -104,11 +106,34 @@ Signer* new_signer(OSSL_LIB_CTX *ctx) {
         goto cleanup;
     }
 
+    if(EVP_DigestFinal(digest_ctx, digest_val, &digest_len) != 1) {
+        fprintf(stderr, "failed to finalise digest for pub key");
+        goto cleanup;
+    }
+
+    unsigned char *pub = malloc(sizeof(unsigned char) * 20);
+    memcpy(pub, digest_val + (size_t)digest_len - 20, 20);
+
+
+    printf("full shortened generated pubkey (len %d): ", 20);
+    for(unsigned int i=0; i<20; i++) {
+        printf("%02x", pub[i]);
+    }
+    printf("\n");
+
+    printf("full generated pubkey (len %d): ", digest_len);
+    for(unsigned int i=0; i<digest_len; i++) {
+        printf("%02x", digest_val[i]);
+    }
+
+    printf("\n");
+
     return 0;
 
     cleanup:
         EVP_MD_CTX_free(digest_ctx);
         EVP_MD_free(pub_digest);
+        OPENSSL_free(digest_val);
         return 1;
 
 

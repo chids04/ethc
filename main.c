@@ -47,7 +47,7 @@ int main() {
         fprintf(stderr, "signature invalid\n");
     }
 
-    get_pub_key(s);
+    gen_pub_key(s);
 
     return 0;
 }
