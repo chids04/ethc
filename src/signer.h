@@ -47,18 +47,18 @@ Signer* new_signer(OSSL_LIB_CTX *ctx) {
 
 // }
 
- int gen_pub_key(Signer *signer) {
+ const unsigned char* gen_pub_key(Signer *signer) {
 
     BIGNUM *x = NULL;
     BIGNUM *y = NULL;
 
     if(EVP_PKEY_get_bn_param(signer->pkey, OSSL_PKEY_PARAM_EC_PUB_X, &x) != 1) {
         fprintf(stderr, "error generating public key: invalid ec x param");
-        return 1;
+        goto cleanup;
     }
     if(EVP_PKEY_get_bn_param(signer->pkey, OSSL_PKEY_PARAM_EC_PUB_Y, &y) != 1) {
         fprintf(stderr, "error generating public key: invalid ec y param");
-        return 1;
+        goto cleanup;
     }
 
     unsigned char xy[64];
@@ -67,7 +67,7 @@ Signer* new_signer(OSSL_LIB_CTX *ctx) {
 
     if(x_len < 0 || y_len < 0) {
         fprintf(stderr, "invalid x and/or y values from ECDSA point curve");
-        return 1;
+        goto cleanup;
     }
 
     BN_free(x);
@@ -128,13 +128,16 @@ Signer* new_signer(OSSL_LIB_CTX *ctx) {
 
     printf("\n");
 
+    EVP_MD_CTX_free(digest_ctx);
+    EVP_MD_free(pub_digest);
+    OPENSSL_free(digest_val);
     return 0;
 
     cleanup:
         EVP_MD_CTX_free(digest_ctx);
         EVP_MD_free(pub_digest);
         OPENSSL_free(digest_val);
-        return 1;
+        return NULL;
 
 
     printf("len of x binary %d", x_len);
